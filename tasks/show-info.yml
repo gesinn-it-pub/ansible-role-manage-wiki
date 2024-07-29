@@ -1,0 +1,10 @@
+- name: Show Info
+  ansible.builtin.debug:
+    msg:
+      WIKI_IMAGE: "{{ WIKI_IMAGE }}"
+      WIKI_KEY: "{{ WIKI_KEY }}"
+      WIKI_DOMAIN: "{{ WIKI_DOMAIN | default('---') }}"
+      WIKI_WGEMERGENCYCONTACT: "{{ WIKI_WGEMERGENCYCONTACT | default('---') }}"
+      WIKI_WGPASSWORDSENDER: "{{ WIKI_WGPASSWORDSENDER | default('---') }}"
+      SC_VERSION: "{{ SC_VERSION | default('---')  }}"
+
