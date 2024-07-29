@@ -1,0 +1,70 @@
+- name: Restart Wiki | 1/4 (docker login)
+  ansible.builtin.shell: |
+    set -eux
+    echo {{ GH_API_TOKEN }} | docker login ghcr.io -u gesinn-it --password-stdin
+  register: restart_1_result
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
+  listen: Restart wiki
+  when: GH_API_TOKEN is defined
+
+# - name: Restart wiki 1/4 result
+#   ansible.builtin.debug:
+#     var: restart_1_result.stdout_lines
+#   listen: Restart wiki
+
+# -----------------------------------------------------------------------------
+
+- name: Restart Wiki | 2/4 (build & up)
+  ansible.builtin.shell: |
+    set -eux
+    {{ docker_compose }} --profile=no-up pull
+    {{ docker_compose }} build --no-cache --pull wiki
+    {{ docker_compose }} up -d --force-recreate
+  register: restart_2_result
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
+  listen: Restart wiki
+
+# - name: Restart wiki 2/4 result
+#   ansible.builtin.debug:
+#     var: restart_2_result.stdout_lines
+#   listen: Restart wiki
+
+# -----------------------------------------------------------------------------
+
+- name: Restart Wiki | 3/4 (wait-for-wiki)
+  ansible.builtin.shell: |
+    set -eux
+    {{ docker_compose }} run --rm wait-for-wiki
+  register: restart_3_result
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
+  listen: Restart wiki
+
+# - name: Restart wiki 3/4 result
+#   ansible.builtin.debug:
+#     var: restart_3_result.stdout_lines
+#   listen: Restart wiki
+
+# -----------------------------------------------------------------------------
+
+- name: Restart Wiki | 4/4 (update.php, changePassword.php)
+  ansible.builtin.shell: |
+    set -eux
+    {{ docker_compose }} exec wiki php maintenance/update.php --quick
+    {{ docker_compose }} exec wiki php maintenance/changePassword.php --user={{ WIKI_WIKISYSOP_USER }} --password={{ WIKI_WIKISYSOP_PASSWORD }} \
+      || true
+  register: restart_4_result
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
+  listen: Restart wiki
+
+# - name: Restart wiki 4/4 result
+#   ansible.builtin.debug:
+#     var: restart_4_result.stdout_lines
+#   listen: Restart wiki
