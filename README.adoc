@@ -1,0 +1,4 @@
+:project_name: Ansible Role "Manage Wiki"
+= {project_name}
+
+Special purpose Ansible role to manage wikis in "factory" environments.
