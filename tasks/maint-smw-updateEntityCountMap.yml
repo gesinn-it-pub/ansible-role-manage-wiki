@@ -1,0 +1,10 @@
+# https://www.semantic-mediawiki.org/wiki/Help:Maintenance_script_updateEntityCountMap.php
+# TODO: remove in CORE 6
+- name: Maintenance SMW | updateEntityCountMap
+  ansible.builtin.shell: |
+    set -eu
+    {{ docker_compose }} exec wiki php extensions/SemanticMediaWiki/maintenance/updateEntityCountMap.php \
+      || true
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
