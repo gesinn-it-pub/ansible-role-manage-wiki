@@ -5,7 +5,7 @@
 
 - name: Ensure Wiki | Ensure docker-compose.yml
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/templates/wiki/docker-compose.yml.j2"
+    src: "{{ playbook_dir }}/../templates/wiki/docker-compose.yml.j2"
     dest: "{{ WIKI_INSTALLATION_PATH }}/docker-compose.yml"
   notify: Restart wiki
 
@@ -21,12 +21,12 @@
     path: "{{ item.src }}"
   register: context_template_file
   with_items:
-    - { src: "{{ playbook_dir }}/templates/wiki/context/Dockerfile.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile" }
-    - { src: "{{ playbook_dir }}/templates/wiki/context/LocalSettings.Custom/LocalSettings.Custom.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Custom.php" }
-    - { src: "{{ playbook_dir }}/templates/wiki/context/LocalSettings.Custom/LocalSettings.Paths.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Paths.php" }
-    - { src: "{{ playbook_dir }}/templates/wiki/context/LocalSettings.Custom/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Include.php" }
-    - { src: "{{ playbook_dir }}/templates/wiki/context/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Include.php" }
-    - { src: "{{ playbook_dir }}/templates/wiki/context/startup-container.sh.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/startup-container.sh" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/context/Dockerfile.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Custom/LocalSettings.Custom.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Custom.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Custom/LocalSettings.Paths.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Paths.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Custom/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Include.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Include.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/context/startup-container.sh.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/startup-container.sh" }
   delegate_to: localhost
   become: false
 
@@ -45,8 +45,8 @@
     path: "{{ item.src }}"
   register: custom_file
   with_items:
-    - { src: "{{ playbook_dir }}/{{ local_wiki_folder }}/customization/logo.png", dest: "{{ WIKI_INSTALLATION_PATH }}/context/logo.png" }
-    - { src: "{{ playbook_dir }}/{{ local_wiki_folder }}/customization/custom.scss", dest: "{{ WIKI_INSTALLATION_PATH }}/context/custom.scss" }
+    - { src: "{{ local_wiki_folder }}/customization/logo.png", dest: "{{ WIKI_INSTALLATION_PATH }}/context/logo.png" }
+    - { src: "{{ local_wiki_folder }}/customization/custom.scss", dest: "{{ WIKI_INSTALLATION_PATH }}/context/custom.scss" }
   delegate_to: localhost
   become: false
 
@@ -69,7 +69,7 @@
 
 - name: Ensure Wiki | Ensure additional PHP files defined by templates
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/{{ local_wiki_folder }}/customization/{{ item }}.php.j2"
+    src: "{{ local_wiki_folder }}/customization/{{ item }}.php.j2"
     dest: "{{ WIKI_INSTALLATION_PATH }}/context/{{ item }}.php"
   with_items: "{{ WIKI_ADDITIONAL_PHP_TEMPLATES }}"
   when: WIKI_ADDITIONAL_PHP_TEMPLATES is defined
@@ -78,14 +78,14 @@
 - name: Ensure Wiki | Check if custom Dockerfile exists
   delegate_to: localhost
   stat:
-    path: "{{ playbook_dir }}/{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
+    path: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
   register: dockerfile_custom_stat
   become: false
 
 - block:
     - name: Ensure Wiki | Copy custom Dockerfile if exists
       template:
-        src: "{{ playbook_dir }}/{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
+        src: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
 
     - name: Ensure Wiki | Read content of Dockerfile to append
