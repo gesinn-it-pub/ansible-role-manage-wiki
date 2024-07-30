@@ -1,0 +1,18 @@
+- name: Destroy Wiki | Docker Compose down
+  ansible.builtin.shell: |
+    set -eu
+    {{ docker_compose }} down --volumes
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+
+- name: Destroy Wiki | Remove installation folder
+  ansible.builtin.file:
+    path: "{{ WIKI_INSTALLATION_PATH }}"
+    state: absent
+
+- name: Destroy Wiki | Remove mobo deployment folder
+  delegate_to: localhost
+  ansible.builtin.file:
+    path: "{{ local_wiki_folder }}/mobo-deployment"
+    state: absent
+  become: false
