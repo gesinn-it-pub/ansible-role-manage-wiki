@@ -5,7 +5,7 @@
 
 - name: Ensure Wiki | Ensure docker-compose.yml
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/../templates/wiki/docker-compose.yml.j2"
+    src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/docker-compose.yml.j2"
     dest: "{{ WIKI_INSTALLATION_PATH }}/docker-compose.yml"
   notify: Restart wiki
 
@@ -21,12 +21,12 @@
     path: "{{ item.src }}"
   register: context_template_file
   with_items:
-    - { src: "{{ playbook_dir }}/../templates/wiki/context/Dockerfile.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Custom/LocalSettings.Custom.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Custom.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Custom/LocalSettings.Paths.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Paths.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Custom/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Include.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/context/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Include.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/context/startup-container.sh.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/startup-container.sh" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/Dockerfile.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Custom.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Custom.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Paths.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Paths.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Include.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Include.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/startup-container.sh.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/startup-container.sh" }
   delegate_to: localhost
   become: false
 
