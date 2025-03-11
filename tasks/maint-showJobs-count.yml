@@ -3,6 +3,9 @@
     set -eu
     {{ docker_compose }} exec wiki php maintenance/showJobs.php \
       2>&1 || true
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
   register: show_jobs_output
   changed_when: false
 
