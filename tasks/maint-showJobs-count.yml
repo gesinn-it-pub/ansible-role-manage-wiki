@@ -2,7 +2,10 @@
   ansible.builtin.shell: |
     set -eu
     {{ docker_compose }} exec wiki php maintenance/showJobs.php \
-      || true
-  args:
-    chdir: "{{ WIKI_INSTALLATION_PATH }}"
-  environment: "{{ proxy_env }}"
+      2>&1 || true
+  register: show_jobs_output
+  changed_when: false
+
+- name: Maintenance | showJobs Output
+  ansible.builtin.debug:
+    var: show_jobs_output.stdout
