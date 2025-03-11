@@ -1,7 +1,7 @@
-- name: Maintenance | runJobs
+- name: Maintenance | showJobs
   ansible.builtin.shell: |
     set -eu
-    {{ docker_compose }} exec wiki php maintenance/runJobs.php --maxjobs 500 --memory-limit 1G \
+    {{ docker_compose }} exec wiki php maintenance/showJobs.php \
       || true
   args:
     chdir: "{{ WIKI_INSTALLATION_PATH }}"
