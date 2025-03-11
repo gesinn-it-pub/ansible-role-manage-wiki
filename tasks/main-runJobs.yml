@@ -1,0 +1,8 @@
+- name: Maintenance | runJobs
+  ansible.builtin.shell: |
+    set -eu
+    {{ docker_compose }} exec wiki php maintenance/runJobs.php  --memory-limit 1G \
+      || true
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  environment: "{{ proxy_env }}"
