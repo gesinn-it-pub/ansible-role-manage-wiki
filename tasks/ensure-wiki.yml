@@ -1,132 +1,171 @@
+# Ensure base installation directory
 - name: Ensure Wiki | Ensure installation folder
   ansible.builtin.file:
     path: "{{ WIKI_INSTALLATION_PATH }}"
     state: directory
+    mode: "0755"
 
+# Ensure docker-compose.yml
 - name: Ensure Wiki | Ensure docker-compose.yml
   ansible.builtin.template:
     src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/docker-compose.yml.j2"
     dest: "{{ WIKI_INSTALLATION_PATH }}/docker-compose.yml"
+    mode: "0644"
   notify: Restart wiki
 
+# Ensure Docker context base folders
 - name: Ensure Wiki | Ensure Docker context folder
   ansible.builtin.file:
     path: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom"
     state: directory
+    mode: "0755"
 
-####
+############################################################
+# Render all context templates
+############################################################
 
-- name: Ensure Wiki | Check if Docker context files templates exists
+# Check existence of source templates
+- name: Ensure Wiki | Check if Docker context template files exist
   ansible.builtin.stat:
     path: "{{ item.src }}"
   register: context_template_file
   with_items:
-    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/Dockerfile.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Custom.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Custom.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Paths.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Paths.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Include.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Include.php.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Include.php" }
-    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/startup-container.sh.j2", dest: "{{ WIKI_INSTALLATION_PATH }}/context/startup-container.sh" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/Dockerfile.j2",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Custom.php.j2",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Custom.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Paths.php.j2",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Paths.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Custom/LocalSettings.Include.php.j2",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom/LocalSettings.Include.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/LocalSettings.Include.php.j2",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Include.php" }
+    - { src: "{{ playbook_dir }}/../templates/wiki/{{ MW_RELEASE }}/context/startup-container.sh.j2",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/startup-container.sh" }
   delegate_to: localhost
   become: false
 
-- name: Ensure Wiki | Ensure Docker context files
+# Render context templates
+- name: Ensure Wiki | Render Docker context template files
   ansible.builtin.template:
     src: "{{ item.item.src }}"
     dest: "{{ item.item.dest }}"
+    mode: "0644"   # enforce deterministic file mode
   when: item.stat.exists
   with_items: "{{ context_template_file.results }}"
   notify: Restart wiki
 
-####
+############################################################
+# Copy custom assets (logo, SCSS, etc.)
+############################################################
 
-- name: Ensure Wiki | Check if custom files exists
+- name: Ensure Wiki | Check if custom files exist
   ansible.builtin.stat:
     path: "{{ item.src }}"
   register: custom_file
   with_items:
-    - { src: "{{ local_wiki_folder }}/customization/logo.png", dest: "{{ WIKI_INSTALLATION_PATH }}/context/logo.png" }
-    - { src: "{{ local_wiki_folder }}/customization/custom.scss", dest: "{{ WIKI_INSTALLATION_PATH }}/context/custom.scss" }
+    - { src: "{{ local_wiki_folder }}/customization/logo.png",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/logo.png" }
+    - { src: "{{ local_wiki_folder }}/customization/custom.scss",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/custom.scss" }
   delegate_to: localhost
   become: false
 
-- name: Ensure Wiki | Ensure custom files
+- name: Ensure Wiki | Copy custom files
   ansible.builtin.copy:
     src: "{{ item.item.src }}"
     dest: "{{ item.item.dest }}"
+    mode: "0644"   # normalize all custom files
   when: item.stat.exists
   with_items: "{{ custom_file.results }}"
   notify: Restart wiki
 
-####
+############################################################
+# Additional PHP templates
+############################################################
 
-- name: Ensure Wiki | Make sure destination directories exist for additional PHP files
-  file:
+- name: Ensure Wiki | Ensure directories for additional PHP files
+  ansible.builtin.file:
     path: "{{ WIKI_INSTALLATION_PATH }}/context/{{ item | dirname }}"
     state: directory
+    mode: "0755"
   with_items: "{{ WIKI_ADDITIONAL_PHP_TEMPLATES }}"
   when: WIKI_ADDITIONAL_PHP_TEMPLATES is defined
 
-- name: Ensure Wiki | Ensure additional PHP files defined by templates
+- name: Ensure Wiki | Render additional PHP templates
   ansible.builtin.template:
     src: "{{ local_wiki_folder }}/customization/{{ item }}.php.j2"
     dest: "{{ WIKI_INSTALLATION_PATH }}/context/{{ item }}.php"
+    mode: "0644"
   with_items: "{{ WIKI_ADDITIONAL_PHP_TEMPLATES }}"
   when: WIKI_ADDITIONAL_PHP_TEMPLATES is defined
   notify: Restart wiki
 
+############################################################
+# Custom Dockerfile merge
+############################################################
+
 - name: Ensure Wiki | Check if custom Dockerfile exists
-  delegate_to: localhost
   stat:
     path: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
+  delegate_to: localhost
   register: dockerfile_custom_stat
   become: false
 
 - block:
-    - name: Ensure Wiki | Copy custom Dockerfile if exists
+    - name: Ensure Wiki | Render custom Dockerfile
       template:
         src: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
+        mode: "0644"
 
-    - name: Ensure Wiki | Read content of Dockerfile to append
+    - name: Ensure Wiki | Read custom Dockerfile content
       slurp:
         src: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
       register: dockerfile_custom_content
 
-    - name: Ensure Wiki | Append Dockerfile content to target Dockerfile
+    - name: Ensure Wiki | Append custom Dockerfile to base Dockerfile
       lineinfile:
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile"
         line: "{{ dockerfile_custom_content.content | b64decode }}"
         insertafter: EOF
   when: dockerfile_custom_stat.stat.exists
 
+############################################################
+# TLS certificate management
+############################################################
+
 - block:
     - name: Ensure Wiki | Ensure TLS certificate (crt)
       ansible.builtin.copy:
         content: "{{ WIKI_TLS_CERTIFICATE.crt }}"
         dest: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/certs/{{ WIKI_DOMAIN }}.crt"
+        mode: "0644"
       notify: Restart wiki
 
     - name: Ensure Wiki | Ensure TLS certificate (key)
       ansible.builtin.copy:
         content: "{{ WIKI_TLS_CERTIFICATE.key }}"
         dest: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/certs/{{ WIKI_DOMAIN }}.key"
+        mode: "0600"
       notify: Restart wiki
 
-    - name: Ensure Wiki | Ensure corresponding TLS configuration
+    - name: Ensure Wiki | Ensure TLS dynamic configuration
       ansible.builtin.copy:
         dest: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/dynamic/{{ WIKI_DOMAIN }}.yml"
+        mode: "0644"
         content: |
           tls:
             certificates:
               - certFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.crt
-                keyFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.key
+                keyFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.key"
       notify: Restart wiki
   when: WIKI_TLS_CERTIFICATE is defined
 
 - name: Ensure Wiki | Ensure TLS configuration for extra certs
   ansible.builtin.copy:
     dest: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/dynamic/{{ WIKI_DOMAIN }}.yml"
+    mode: "0644"
     content: |
       tls:
         certificates:
