@@ -190,7 +190,7 @@
         content: "{{ LDAP_CA_CERTIFICATE }}"
         dest: /usr/local/share/ca-certificates/LDAP-CA.crt
         mode: "0644"
-      notify: Update CA certificates
+      become: true
 
     - name: Update CA certificates
       ansible.builtin.command:
