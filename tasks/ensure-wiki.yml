@@ -173,3 +173,27 @@
             keyFile: /etc/traefik/extra-certs/{{ WIKI_DOMAIN }}.key
   when: WIKI_USES_EXTRA_CERT
   notify: Restart wiki
+
+############################################################
+# LDAP CA certificate management
+############################################################
+
+- block:
+    - name: Ensure Wiki | LDAP CA certificate directory exists
+      ansible.builtin.file:
+        path: /usr/local/share/ca-certificates
+        state: directory
+        mode: "0755"
+
+    - name: Ensure Wiki | LDAP Copy CA certificate
+      ansible.builtin.copy:
+        content: "{{ LDAP_CA_CERTIFICATE }}"
+        dest: /usr/local/share/ca-certificates/LDAP-CA.crt
+        mode: "0644"
+      notify: Update CA certificates
+
+    - name: Update CA certificates
+      ansible.builtin.command:
+        cmd: update-ca-certificates
+      become: true
+  when: LDAP_CA_CERTIFICATE is defined
