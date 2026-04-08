@@ -106,36 +106,39 @@
 ############################################################
 
 - name: Ensure Wiki | Check if custom Dockerfile exists
-  stat:
+  ansible.builtin.stat:
     path: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
   delegate_to: localhost
   register: dockerfile_custom_stat
   become: false
 
-- block:
+- name: Ensure Wiki | Custom Dockerfile block
+  when: dockerfile_custom_stat.stat.exists
+  block:
     - name: Ensure Wiki | Render custom Dockerfile
-      template:
+      ansible.builtin.template:
         src: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
         mode: "0644"
 
     - name: Ensure Wiki | Read custom Dockerfile content
-      slurp:
+      ansible.builtin.slurp:
         src: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
       register: dockerfile_custom_content
 
     - name: Ensure Wiki | Append custom Dockerfile to base Dockerfile
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile"
         line: "{{ dockerfile_custom_content.content | b64decode }}"
         insertafter: EOF
-  when: dockerfile_custom_stat.stat.exists
 
 ############################################################
 # TLS certificate management
 ############################################################
 
-- block:
+- name: Ensure Wiki | TLS certificates block
+  when: WIKI_TLS_CERTIFICATE is defined
+  block:
     - name: Ensure Wiki | Ensure TLS certificate (crt)
       ansible.builtin.copy:
         content: "{{ WIKI_TLS_CERTIFICATE.crt }}"
@@ -160,7 +163,6 @@
               - certFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.crt
                 keyFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.key"
       notify: Restart wiki
-  when: WIKI_TLS_CERTIFICATE is defined
 
 - name: Ensure Wiki | Ensure TLS configuration for extra certs
   ansible.builtin.copy:
@@ -178,7 +180,9 @@
 # LDAP CA certificate management
 ############################################################
 
-- block:
+- name: Ensure Wiki | LDAP CA certificate block
+  when: LDAP_CA_CERTIFICATE is defined
+  block:
     - name: Ensure Wiki | LDAP CA certificate directory exists
       ansible.builtin.file:
         path: /usr/local/share/ca-certificates
@@ -196,4 +200,3 @@
       ansible.builtin.command:
         cmd: update-ca-certificates
       become: true
-  when: LDAP_CA_CERTIFICATE is defined

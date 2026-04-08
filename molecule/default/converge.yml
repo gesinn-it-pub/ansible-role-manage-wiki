@@ -1,0 +1,27 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    WIKI_IMAGE: "ghcr.io/gesinn-it/docker-semantic-core:test"
+    WIKI_KEY: "test-wiki"
+    WIKI_DOMAIN: "wiki.example.com"
+    MW_RELEASE: "1.39"
+    WIKI_INSTALLATION_PATH: /tmp/molecule-wiki-test
+    WIKI_WGEMERGENCYCONTACT: "admin@example.com"
+    WIKI_WGPASSWORDSENDER: "wiki@example.com"
+    WIKI_WIKISYSOP_USER: "WikiSysop"
+    WIKI_WIKISYSOP_PASSWORD: "testpassword"
+    docker_compose: /bin/true
+    proxy_env: {}
+    local_wiki_folder: /tmp/nonexistent-local-wiki
+    WIKI_USES_EXTRA_CERT: false
+  tasks:
+    - name: Apply show-info
+      ansible.builtin.include_role:
+        name: ansible-role-manage-wiki
+        tasks_from: show-info.yml
+
+    - name: Apply ensure-wiki (docker-compose stub present; other templates absent - graceful skip expected)
+      ansible.builtin.include_role:
+        name: ansible-role-manage-wiki
+        tasks_from: ensure-wiki.yml

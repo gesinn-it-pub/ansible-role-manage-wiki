@@ -1,0 +1,35 @@
+---
+- name: Verify
+  hosts: all
+  vars:
+    WIKI_INSTALLATION_PATH: /tmp/molecule-wiki-test
+  tasks:
+    - name: Check installation directory
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}"
+      register: install_dir
+
+    - name: Assert installation directory is present
+      ansible.builtin.assert:
+        that: install_dir.stat.exists
+        fail_msg: "Installation directory must exist after ensure-wiki"
+
+    - name: Check docker-compose.yml
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}/docker-compose.yml"
+      register: compose_file
+
+    - name: Assert docker-compose.yml is present
+      ansible.builtin.assert:
+        that: compose_file.stat.exists
+        fail_msg: "docker-compose.yml must be rendered by ensure-wiki"
+
+    - name: Check Docker context folder
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}/context/LocalSettings.Custom"
+      register: context_dir
+
+    - name: Assert Docker context folder is present
+      ansible.builtin.assert:
+        that: context_dir.stat.exists
+        fail_msg: "context/LocalSettings.Custom directory must exist after ensure-wiki"

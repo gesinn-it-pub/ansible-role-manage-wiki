@@ -6,5 +6,4 @@
       WIKI_DOMAIN: "{{ WIKI_DOMAIN | default('---') }}"
       WIKI_WGEMERGENCYCONTACT: "{{ WIKI_WGEMERGENCYCONTACT | default('---') }}"
       WIKI_WGPASSWORDSENDER: "{{ WIKI_WGPASSWORDSENDER | default('---') }}"
-      SC_VERSION: "{{ SC_VERSION | default('---')  }}"
-
+      SC_VERSION: "{{ SC_VERSION | default('---') }}"

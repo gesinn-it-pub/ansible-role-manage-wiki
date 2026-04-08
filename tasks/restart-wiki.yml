@@ -1,5 +1,6 @@
 - name: Restart Wiki | Create a file to trigger the handler
-  file:
+  ansible.builtin.file:
     path: /tmp/restart-wiki-trigger
     state: touch
+
   notify: Restart wiki
