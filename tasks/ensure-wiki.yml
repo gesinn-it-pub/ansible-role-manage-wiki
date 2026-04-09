@@ -195,6 +195,7 @@
         dest: /usr/local/share/ca-certificates/LDAP-CA.crt
         mode: "0644"
       become: true
+      notify: Restart wiki
 
     - name: Update CA certificates
       ansible.builtin.command:
