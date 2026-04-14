@@ -66,6 +66,8 @@
   with_items:
     - { src: "{{ local_wiki_folder }}/customization/logo.png",
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/logo.png" }
+    - { src: "{{ local_wiki_folder }}/customization/logo.svg",
+        dest: "{{ WIKI_INSTALLATION_PATH }}/context/logo.svg" }
     - { src: "{{ local_wiki_folder }}/customization/custom.scss",
         dest: "{{ WIKI_INSTALLATION_PATH }}/context/custom.scss" }
   delegate_to: localhost
