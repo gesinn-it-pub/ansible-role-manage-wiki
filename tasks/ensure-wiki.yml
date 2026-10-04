@@ -163,7 +163,7 @@
           tls:
             certificates:
               - certFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.crt
-                keyFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.key"
+                keyFile: /etc/traefik/certs/{{ WIKI_DOMAIN }}.key
       notify: Restart wiki
 
 - name: Ensure Wiki | Ensure TLS configuration for extra certs
