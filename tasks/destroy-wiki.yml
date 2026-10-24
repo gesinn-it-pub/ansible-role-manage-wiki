@@ -1,9 +1,15 @@
+- name: Destroy Wiki | Check if the installation folder exists
+  ansible.builtin.stat:
+    path: "{{ WIKI_INSTALLATION_PATH }}"
+  register: destroy_wiki_installation
+
 - name: Destroy Wiki | Docker Compose down
   ansible.builtin.shell: |
     set -eu
     {{ docker_compose }} down --volumes
   args:
     chdir: "{{ WIKI_INSTALLATION_PATH }}"
+  when: destroy_wiki_installation.stat.exists
 
 - name: Destroy Wiki | Remove installation folder
   ansible.builtin.file:

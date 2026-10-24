@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    # Stubbed: the docker CLI (molecule/shared/bin). Untested: a real
+    # `docker compose down --volumes`.
+    - name: Destroy wiki
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/destroy-wiki.yml"

@@ -1,0 +1,14 @@
+---
+- name: Prepare
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Create an installed wiki and its local deployment folder
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ WIKI_INSTALLATION_PATH }}"
+        - "{{ local_wiki_folder }}/mobo-deployment"

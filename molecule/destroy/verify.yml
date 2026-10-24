@@ -1,0 +1,27 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Stat what destroy-wiki removes
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: removed
+      loop:
+        - "{{ WIKI_INSTALLATION_PATH }}"
+        - "{{ local_wiki_folder }}/mobo-deployment"
+
+    - name: Assert the installation and the local deployment folder are gone
+      ansible.builtin.assert:
+        that: not (removed.results | map(attribute='stat.exists') | max)
+
+    - name: Read the docker call log
+      ansible.builtin.slurp:
+        src: /tmp/molecule-destroy/docker.log
+      register: docker_log
+
+    - name: Assert the compose project was taken down exactly once, with its volumes
+      ansible.builtin.assert:
+        that: (docker_log.content | b64decode).splitlines() | select('equalto', 'docker compose down --volumes') | list | length == 1
+        fail_msg: "destroy-wiki must run `docker compose down --volumes` once and not again when the wiki is already gone"
