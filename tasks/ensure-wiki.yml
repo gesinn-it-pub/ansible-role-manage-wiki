@@ -197,9 +197,12 @@
         dest: /usr/local/share/ca-certificates/LDAP-CA.crt
         mode: "0644"
       become: true
+      register: ldap_ca_certificate_copy
       notify: Restart wiki
 
-    - name: Update CA certificates
+    - name: Ensure Wiki | Update CA certificates
       ansible.builtin.command:
         cmd: update-ca-certificates
       become: true
+      when: ldap_ca_certificate_copy is changed
+      changed_when: true

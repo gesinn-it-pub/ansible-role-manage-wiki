@@ -1,0 +1,36 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Stat the CA certificate
+      ansible.builtin.stat:
+        path: /usr/local/share/ca-certificates/LDAP-CA.crt
+      register: ca
+
+    - name: Assert the CA certificate is installed with mode 0644
+      ansible.builtin.assert:
+        that:
+          - ca.stat.exists
+          - ca.stat.mode == "0644"
+
+    - name: Read the CA certificate
+      ansible.builtin.slurp:
+        src: /usr/local/share/ca-certificates/LDAP-CA.crt
+      register: ca_content
+
+    - name: Assert the content is the configured CA
+      ansible.builtin.assert:
+        that: "(ca_content.content | b64decode) == LDAP_CA_CERTIFICATE"
+
+    - name: Read the call log
+      ansible.builtin.slurp:
+        src: /tmp/molecule-ldap-ca/docker.log
+      register: log
+
+    - name: Assert the trust store is updated and the wiki restarted (once each)
+      ansible.builtin.assert:
+        that:
+          - (log.content | b64decode).splitlines() | select('equalto', 'update-ca-certificates ') | list | length == 1
+          - (log.content | b64decode).splitlines() | select('search', 'compose up -d --force-recreate') | list | length == 1
