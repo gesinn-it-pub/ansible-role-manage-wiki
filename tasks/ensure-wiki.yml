@@ -20,6 +20,15 @@
     state: directory
     mode: "0755"
 
+# Needed before the context templates: with a custom part, the Dockerfile is
+# rendered in one step further down
+- name: Ensure Wiki | Check if custom Dockerfile exists
+  ansible.builtin.stat:
+    path: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
+  delegate_to: localhost
+  register: dockerfile_custom_stat
+  become: false
+
 ############################################################
 # Render all context templates
 ############################################################
@@ -51,7 +60,9 @@
     src: "{{ item.item.src }}"
     dest: "{{ item.item.dest }}"
     mode: "0644"   # enforce deterministic file mode
-  when: item.stat.exists
+  when:
+    - item.stat.exists
+    - not (item.item.dest == WIKI_INSTALLATION_PATH ~ '/context/Dockerfile' and dockerfile_custom_stat.stat.exists)
   with_items: "{{ context_template_file.results }}"
   notify: Restart wiki
 
@@ -107,32 +118,17 @@
 # Custom Dockerfile merge
 ############################################################
 
-- name: Ensure Wiki | Check if custom Dockerfile exists
-  ansible.builtin.stat:
-    path: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
-  delegate_to: localhost
-  register: dockerfile_custom_stat
-  become: false
-
-- name: Ensure Wiki | Custom Dockerfile block
+# The custom part is appended to the base Dockerfile. Both are rendered into one file in one step: rendering the base
+# Dockerfile first and appending afterwards would report a change on every run and restart the wiki each time.
+- name: Ensure Wiki | Render Dockerfile with the custom part
+  ansible.builtin.copy:
+    content: >-
+      {{ lookup('ansible.builtin.template', playbook_dir ~ '/../templates/wiki/' ~ MW_RELEASE ~ '/context/Dockerfile.j2')
+      ~ lookup('ansible.builtin.template', local_wiki_folder ~ '/customization/Dockerfile.Custom.j2') }}
+    dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile"
+    mode: "0644"
   when: dockerfile_custom_stat.stat.exists
-  block:
-    - name: Ensure Wiki | Render custom Dockerfile
-      ansible.builtin.template:
-        src: "{{ local_wiki_folder }}/customization/Dockerfile.Custom.j2"
-        dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
-        mode: "0644"
-
-    - name: Ensure Wiki | Read custom Dockerfile content
-      ansible.builtin.slurp:
-        src: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile.Custom"
-      register: dockerfile_custom_content
-
-    - name: Ensure Wiki | Append custom Dockerfile to base Dockerfile
-      ansible.builtin.lineinfile:
-        dest: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile"
-        line: "{{ dockerfile_custom_content.content | b64decode }}"
-        insertafter: EOF
+  notify: Restart wiki
 
 ############################################################
 # TLS certificate management

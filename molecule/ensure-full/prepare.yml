@@ -1,0 +1,25 @@
+---
+- name: Prepare
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Create the customization folders of the wiki
+      ansible.builtin.file:
+        path: "{{ local_wiki_folder }}/customization/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - ""
+        - extra
+
+    - name: Create the customization files of the wiki
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ local_wiki_folder }}/customization/{{ item.name }}"
+        mode: "0644"
+      loop:
+        - { name: logo.svg, content: "<svg/>\n" }
+        - { name: custom.scss, content: "$brand: red;\n" }
+        - { name: Dockerfile.Custom.j2, content: "RUN echo custom-{{ '{{' }} WIKI_KEY {{ '}}' }}\n" }
+        - { name: extra/LocalSettings.Extra.php.j2, content: "<?php $wgExtra = '{{ '{{' }} WIKI_KEY {{ '}}' }}';\n" }

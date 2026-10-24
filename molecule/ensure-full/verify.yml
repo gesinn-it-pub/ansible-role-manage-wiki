@@ -1,0 +1,81 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Stat the rendered files
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}/{{ item }}"
+      register: rendered
+      loop:
+        - docker-compose.yml
+        - context/Dockerfile
+        - context/LocalSettings.Include.php
+        - context/LocalSettings.Custom/LocalSettings.Custom.php
+        - context/LocalSettings.Custom/LocalSettings.Paths.php
+        - context/LocalSettings.Custom/LocalSettings.Include.php
+        - context/startup-container.sh
+        - context/logo.svg
+        - context/custom.scss
+        - context/extra/LocalSettings.Extra.php
+
+    - name: Assert all files exist with mode 0644
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == "0644"
+        fail_msg: "{{ item.item }} must exist with mode 0644"
+      loop: "{{ rendered.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Assert logo.png is not copied when the wiki has no logo.png
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}/context/logo.png"
+      register: logo_png
+
+    - name: Assert logo.png does not exist
+      ansible.builtin.assert:
+        that: not logo_png.stat.exists
+
+    - name: Read the rendered Dockerfile
+      ansible.builtin.slurp:
+        src: "{{ WIKI_INSTALLATION_PATH }}/context/Dockerfile"
+      register: dockerfile
+
+    - name: Assert the custom Dockerfile is rendered and appended exactly once
+      ansible.builtin.assert:
+        that:
+          - "('FROM ' ~ WIKI_IMAGE) in (dockerfile.content | b64decode)"
+          - (dockerfile.content | b64decode).count('RUN echo custom-test-wiki') == 1
+        fail_msg: "Dockerfile.Custom must be appended once, with its Jinja expressions rendered"
+
+    - name: Read the additional PHP file
+      ansible.builtin.slurp:
+        src: "{{ WIKI_INSTALLATION_PATH }}/context/extra/LocalSettings.Extra.php"
+      register: extra_php
+
+    - name: Assert the additional PHP template is rendered
+      ansible.builtin.assert:
+        that: "(extra_php.content | b64decode) is search('wgExtra = .test-wiki.')"
+
+    - name: Read the docker call log
+      ansible.builtin.slurp:
+        src: "/tmp/molecule-ensure-full/docker.log"
+      register: docker_log
+
+    - name: Assert the restart handler ran in order, once
+      ansible.builtin.assert:
+        that:
+          - (docker_log.content | b64decode).splitlines() | select('search', 'login ghcr.io') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'compose up -d --force-recreate') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'compose run --rm wait-for-wiki') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'maintenance/update.php --quick') | list | length == 1
+        fail_msg: "Restart wiki must log in, build, wait and update exactly once"
+
+    - name: Assert the GitHub token is passed on stdin and never on the command line
+      ansible.builtin.assert:
+        that:
+          - "'docker-login-stdin length=' in (docker_log.content | b64decode)"
+          - "'ghp_not-a-real-token' not in (docker_log.content | b64decode)"
