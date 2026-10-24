@@ -1,0 +1,19 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Read the docker call log
+      ansible.builtin.slurp:
+        src: /tmp/molecule-actions/docker.log
+      register: docker_log
+
+    - name: Assert every action reached docker once, in the installation folder context
+      ansible.builtin.assert:
+        that:
+          - (docker_log.content | b64decode).splitlines() | select('search', 'compose exec wiki php maintenance/runJobs.php --maxjobs 500') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'compose exec wiki php maintenance/showJobs.php') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'updateEntityCountMap.php') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'compose up -d --force-recreate') | list | length == 1
+          - (docker_log.content | b64decode).splitlines() | select('search', 'maintenance/changePassword.php --user=WikiSysop') | list | length == 1

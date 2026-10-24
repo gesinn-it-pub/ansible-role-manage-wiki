@@ -7,6 +7,7 @@ profile: basic
 # Exclude files not meant to be linted directly
 exclude_paths:
   - .github/
+  - molecule/shared/vars.yml   # a vars file, not a playbook
 
 # Skip rules that don't apply to this role
 skip_list:

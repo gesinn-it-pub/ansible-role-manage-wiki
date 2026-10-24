@@ -1,0 +1,43 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Stat the certificate files
+      ansible.builtin.stat:
+        path: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/{{ item }}"
+      register: tls_files
+      loop:
+        - "certs/{{ WIKI_DOMAIN }}.crt"
+        - "certs/{{ WIKI_DOMAIN }}.key"
+        - "dynamic/{{ WIKI_DOMAIN }}.yml"
+
+    - name: Assert the key is private and the others are readable
+      ansible.builtin.assert:
+        that:
+          - tls_files.results | map(attribute='stat.exists') | min
+          - tls_files.results[0].stat.mode == "0644"
+          - tls_files.results[1].stat.mode == "0600"
+          - tls_files.results[2].stat.mode == "0644"
+
+    - name: Read the dynamic configuration
+      ansible.builtin.slurp:
+        src: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/dynamic/{{ WIKI_DOMAIN }}.yml"
+      register: dynamic
+
+    - name: Assert the dynamic configuration points at the certificate of the wiki
+      ansible.builtin.assert:
+        that:
+          - "('certFile: /etc/traefik/certs/' ~ WIKI_DOMAIN ~ '.crt') in (dynamic.content | b64decode)"
+          - "('keyFile: /etc/traefik/certs/' ~ WIKI_DOMAIN ~ '.key') in (dynamic.content | b64decode)"
+          - "'extra-certs' not in (dynamic.content | b64decode)"
+
+    - name: Read the key
+      ansible.builtin.slurp:
+        src: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/certs/{{ WIKI_DOMAIN }}.key"
+      register: tls_key
+
+    - name: Assert the key content is the configured one
+      ansible.builtin.assert:
+        that: "(tls_key.content | b64decode) == WIKI_TLS_CERTIFICATE.key"

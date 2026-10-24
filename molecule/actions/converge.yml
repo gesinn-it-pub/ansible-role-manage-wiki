@@ -1,0 +1,26 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    # Stubbed: the docker CLI (molecule/shared/bin). Untested: the maintenance
+    # scripts and the restart against a real wiki.
+    - name: Show info
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/show-info.yml"
+
+    - name: Restart wiki
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/restart-wiki.yml"
+
+    - name: Run jobs
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/maint-runJobs.yml"
+
+    - name: Count jobs
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/maint-showJobs-count.yml"
+
+    - name: Update the SMW entity count map
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/maint-smw-updateEntityCountMap.yml"
+
+  handlers:
+    - name: Restart wiki
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../handlers/restart-wiki.yml"

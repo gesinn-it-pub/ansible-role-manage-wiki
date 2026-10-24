@@ -1,0 +1,25 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Read the dynamic configuration
+      ansible.builtin.slurp:
+        src: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/dynamic/{{ WIKI_DOMAIN }}.yml"
+      register: dynamic
+
+    - name: Assert the dynamic configuration points at the extra certificate
+      ansible.builtin.assert:
+        that:
+          - "('certFile: /etc/traefik/extra-certs/' ~ WIKI_DOMAIN ~ '.crt') in (dynamic.content | b64decode)"
+          - "('keyFile: /etc/traefik/extra-certs/' ~ WIKI_DOMAIN ~ '.key') in (dynamic.content | b64decode)"
+
+    - name: Stat the certificates the role would copy for WIKI_TLS_CERTIFICATE
+      ansible.builtin.stat:
+        path: "{{ TRAEFIK_INSTALLATION_PATH }}/etc/certs/{{ WIKI_DOMAIN }}.crt"
+      register: crt
+
+    - name: Assert no certificate is copied without WIKI_TLS_CERTIFICATE
+      ansible.builtin.assert:
+        that: not crt.stat.exists

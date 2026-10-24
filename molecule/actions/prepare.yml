@@ -1,0 +1,11 @@
+---
+- name: Prepare
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Create an installed wiki
+      ansible.builtin.file:
+        path: "{{ WIKI_INSTALLATION_PATH }}"
+        state: directory
+        mode: "0755"

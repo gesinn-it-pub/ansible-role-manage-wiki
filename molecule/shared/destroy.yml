@@ -1,0 +1,16 @@
+---
+# The local driver changes the machine that runs the test, so remove what the
+# scenario created. Otherwise the scenarios would depend on the run order.
+- name: Destroy
+  hosts: all
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Remove files and directories created by the scenario
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ scenario_root }}"
+        - /tmp/restart-wiki-trigger
+        - /usr/local/share/ca-certificates/LDAP-CA.crt

@@ -1,0 +1,18 @@
+---
+# Inputs that wiki-factory passes to the role, shared by all scenarios.
+# Scenario specific inputs are group_vars in the scenario's molecule.yml.
+scenario_root: "/tmp/molecule-{{ lookup('ansible.builtin.env', 'MOLECULE_SCENARIO_NAME') }}"
+
+WIKI_IMAGE: "ghcr.io/gesinn-it/docker-semantic-core:test"
+WIKI_KEY: "test-wiki"
+WIKI_DOMAIN: "wiki.example.com"
+WIKI_INSTALLATION_PATH: "{{ scenario_root }}/wiki"
+WIKI_WGEMERGENCYCONTACT: "admin@example.com"
+WIKI_WGPASSWORDSENDER: "wiki@example.com"
+WIKI_WIKISYSOP_USER: "WikiSysop"
+WIKI_WIKISYSOP_PASSWORD: "testpassword"
+
+# `docker` is the stub in molecule/shared/bin
+docker_compose: docker compose
+proxy_env: {}
+local_wiki_folder: "{{ scenario_root }}/local"

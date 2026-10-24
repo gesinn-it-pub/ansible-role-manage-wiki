@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Stand-in for the docker CLI. Replaces the real daemon, so everything that
+# depends on a running Docker is untested. Every call is appended to
+# FAKE_DOCKER_LOG; a token passed on stdin is never logged, only its length.
+log="${FAKE_DOCKER_LOG:-/tmp/fake-docker.log}"
+mkdir -p "$(dirname "$log")"
+echo "docker $*" >> "$log"
+
+case "$*" in
+  *--password-stdin*)
+    read -r secret
+    echo "docker-login-stdin length=${#secret}" >> "$log" ;;
+  *showJobs.php*) echo "0" ;;
+esac

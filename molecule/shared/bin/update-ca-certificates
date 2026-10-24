@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Stand-in for update-ca-certificates: records the call instead of changing
+# the trust store of the machine that runs the test.
+log="${FAKE_DOCKER_LOG:-/tmp/fake-docker.log}"
+mkdir -p "$(dirname "$log")"
+echo "update-ca-certificates $*" >> "$log"
