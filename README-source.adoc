@@ -2,3 +2,163 @@
 = {project_name}
 
 Special purpose Ansible role to manage wikis in "factory" environments.
+
+== What it does
+
+The role manages a MediaWiki that runs with Docker Compose on a host: it renders the Docker build context, copies the
+customization of the wiki, installs certificates and restarts the wiki when one of them changed.
+
+The role has no `tasks/main.yml`. Callers pick the task file they need, see <<task-files>>.
+
+== Requirements
+
+* ansible-core 2.19 or newer (the CI tests the 2.19 floor and the latest release)
+* Docker with the compose plugin on the target host. Install it with `gesinn.manage_base`.
+* The templates of the wiki (`templates/wiki/<MW_RELEASE>/...`). They are not part of the role, see <<templates>>.
+* Privileges: run the play with `become: true`. Tasks that read from the controller (`delegate_to: localhost`) set
+  `become: false` themselves.
+
+== Usage
+
+The role is consumed by `include_tasks` on the single task files. `defaults/` of the role is therefore never loaded:
+every input is a variable of the calling project, and optional ones are defaulted inside the tasks.
+
+[source,yaml]
+----
+- hosts: all
+  become: true
+  vars_files:
+    - "{{ local_wiki_folder }}/customization/config.yml"
+  tasks:
+    - ansible.builtin.include_tasks: "roles/gesinn.manage_wiki/tasks/show-info.yml"
+    - ansible.builtin.include_tasks: "roles/gesinn.manage_wiki/tasks/ensure-wiki.yml"
+  handlers:
+    - name: Restart wiki
+      ansible.builtin.include_tasks: "roles/gesinn.manage_wiki/handlers/restart-wiki.yml"
+----
+
+[#task-files]
+== Task files
+
+[cols="2,3",options="header"]
+|===
+| File | Purpose
+
+| `tasks/show-info.yml`
+| Prints the identity of the wiki (image, key, domain, ...).
+
+| `tasks/ensure-wiki.yml`
+| Renders the Docker build context, copies the customization, manages the TLS and LDAP CA certificates. Notifies
+`Restart wiki` for every change.
+
+| `tasks/restart-wiki.yml`
+| Triggers `Restart wiki` explicitly.
+
+| `tasks/destroy-wiki.yml`
+| Runs `docker compose down --volumes` and removes the installation and the local `mobo-deployment` folder. Can be run
+again when the wiki is already gone.
+
+| `tasks/maint-runJobs.yml`
+| Runs up to 500 MediaWiki jobs.
+
+| `tasks/maint-showJobs-count.yml`
+| Prints the number of queued jobs.
+
+| `tasks/maint-smw-updateEntityCountMap.yml`
+| Runs the Semantic MediaWiki `updateEntityCountMap.php`.
+|===
+
+The file names are part of the interface of the role. Renaming one is a breaking change.
+
+== Variables
+
+Required for `ensure-wiki.yml`, `restart-wiki.yml` and the handler:
+
+[cols="2,3",options="header"]
+|===
+| Variable | Description
+
+| `WIKI_INSTALLATION_PATH`
+| Folder of the wiki on the host.
+
+| `MW_RELEASE`
+| MediaWiki release, selects `templates/wiki/<MW_RELEASE>/`.
+
+| `WIKI_IMAGE`, `WIKI_KEY`, `WIKI_DOMAIN`
+| Image, key and domain of the wiki.
+
+| `docker_compose`
+| The compose command, for example `docker compose`.
+
+| `proxy_env`
+| Environment (proxy settings) for the docker commands, `{}` for none. Shared with `gesinn.manage_base`.
+
+| `local_wiki_folder`
+| Folder of the wiki on the controller. `customization/` in it holds the optional logo, SCSS, custom Dockerfile and
+additional PHP templates.
+
+| `WIKI_WIKISYSOP_USER`, `WIKI_WIKISYSOP_PASSWORD`
+| The restart handler sets this password for this user.
+|===
+
+Optional:
+
+[cols="2,1,3",options="header"]
+|===
+| Variable | Default | Description
+
+| `GH_API_TOKEN`
+| unset
+| Token for `docker login ghcr.io`. Without it the handler does not log in.
+
+| `WIKI_ADDITIONAL_PHP_TEMPLATES`
+| unset
+| List of names; `customization/<name>.php.j2` is rendered to `context/<name>.php`.
+
+| `WIKI_TLS_CERTIFICATE`
+| unset
+| Dictionary with `crt` and `key`. Both are written to the Traefik certificates folder (the key with mode `0600`).
+Needs `TRAEFIK_INSTALLATION_PATH`.
+
+| `WIKI_USES_EXTRA_CERT`
+| `false`
+| Point Traefik at the certificate in `extra-certs/` instead.
+
+| `LDAP_CA_CERTIFICATE`
+| unset
+| CA certificate that is installed on the host. `update-ca-certificates` runs only when it changed.
+|===
+
+[#templates]
+== Templates
+
+The role does not ship the templates. `ensure-wiki.yml` renders them from `<playbook_dir>/../templates/wiki/<MW_RELEASE>/`
+of the calling project: `docker-compose.yml.j2` and, below `context/`, `Dockerfile.j2`, `LocalSettings.Include.php.j2`,
+`startup-container.sh.j2` and `LocalSettings.Custom/*.php.j2`. A template that is absent is skipped.
+
+A `customization/Dockerfile.Custom.j2` is appended to the Dockerfile.
+
+== Handler
+
+`handlers/restart-wiki.yml` registers its tasks for the topic `Restart wiki`:
+
+. `docker login` (only with `GH_API_TOKEN`)
+. `pull`, `build --no-cache --pull`, `up -d --force-recreate`
+. wait for the wiki
+. `update.php --quick`
+. `changePassword.php` for the wiki sysop
+
+The token and the password are handed over on stdin and the tasks are censored (`no_log`), so they appear neither in
+the process list nor in the Ansible output. Callers define a handler named `Restart wiki` that includes this file.
+
+== Development
+
+[source,shell]
+----
+make lint       # ansible-lint
+make molecule   # all scenarios; ANSIBLE_CORE=2.19 runs the floor, SCENARIO=<name> runs one
+----
+
+The Molecule scenarios apply the role the way the consumer does (single task files, restart handler included). The
+docker CLI and `update-ca-certificates` are stubs in `molecule/shared/bin` that log their calls, so the scenarios assert
+what the role would have run. A real Docker daemon and a real wiki are not covered.
