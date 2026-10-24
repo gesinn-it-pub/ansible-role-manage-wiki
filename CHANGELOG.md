@@ -6,30 +6,31 @@ This project adheres to [Semantic Versioning](https://semver.org/) and
 
 ## [Unreleased]
 
-Raises the ansible-core floor to 2.19 and restarts Ofelia after changes to the wiki containers.
+## [3.0.0] - 2026-10-24
 
-On the first rollout every wiki restart (and every `destroy-wiki.yml`) restarts the shared Ofelia container once. Set
-`manage_wiki_restart_ofelia: false` to keep the old behaviour.
+Requires ansible-core 2.19 and restarts the shared Ofelia container whenever a wiki is restarted or destroyed. Read the
+Breaking Changes before you update. The release also fixes the custom Dockerfile rebuilding the wiki on every run and keeps
+the GitHub token and the sysop password out of logs and the process list.
 
 ### Breaking Changes
-- Require ansible-core 2.19 or newer [`00f9428`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/00f9428)
+- Require ansible-core 2.19 or newer; 2.18 is no longer supported [`aa5df5b`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/aa5df5b)
+- Restart the shared Ofelia container after every wiki restart and every `destroy-wiki.yml`. The first rollout restarts Ofelia once per wiki restart. Set `manage_wiki_restart_ofelia: false` to keep the old behaviour [`606bae5`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/606bae5)
 
 ### Added
-- `tasks/restart-ofelia.yml`: restart the shared Ofelia container, for callers that stop, destroy or restore wikis themselves
-- The variables `manage_wiki_restart_ofelia`, `manage_wiki_ofelia_container` and `manage_wiki_ofelia_wait_seconds`
+- Add `tasks/restart-ofelia.yml`, so that your own stop and restore flows can restart Ofelia as well. Ofelia 0.3.x reads the job labels of the wiki containers only at its start, so without it the jobs of a recreated wiki never ran [`606bae5`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/606bae5)
+- Add the variables `manage_wiki_restart_ofelia` (default `true`), `manage_wiki_ofelia_container` (default `ofelia`) and `manage_wiki_ofelia_wait_seconds` (default `30`) [`606bae5`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/606bae5)
+- Skip the restart when no Ofelia container runs, fail with a clear message when the restart fails, and wait up to 30 seconds for a running `run-jobs.sh` first [`606bae5`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/606bae5)
 
 ### Changed
-- The restart handler restarts Ofelia after the wiki is up, because Ofelia 0.3.x reads the job labels only at its start; without this the jobs of a recreated wiki never ran. A running `run-jobs.sh` is awaited for up to 30 seconds first
-- `destroy-wiki.yml` restarts Ofelia afterwards, so that it stops failing on the jobs of the removed containers
-- The restart handler has six steps instead of four: the changePassword.php call is a step of its own
+- Document the task files, variables, templates and the restart handler in the README [`62156d7`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/62156d7)
+- Document the Ofelia restart and its variables [`d4f66b7`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/d4f66b7)
 
 ### Fixed
-- `ensure-wiki`: render the custom Dockerfile in one step. It was re-rendered and appended on every run, so the wiki image was rebuilt on every ensure [`34a5965`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/34a5965)
-- `ensure-wiki`: run `update-ca-certificates` only when the LDAP CA certificate changed [`5e8938f`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/5e8938f)
-- `ensure-wiki`: no longer abort when `WIKI_USES_EXTRA_CERT` is not set [`523b837`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/523b837)
-- `destroy-wiki`: no longer fail when the installation folder is already gone [`fdd4951`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/fdd4951)
+- Stop rebuilding the wiki image on every `ensure-wiki` run when `Dockerfile.Custom.j2` exists [`9461751`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/9461751)
+- Run `update-ca-certificates` only when the LDAP CA certificate changed [`9f23ba3`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/9f23ba3)
+- Do not abort `ensure-wiki` when `WIKI_USES_EXTRA_CERT` is not set [`b89b6d5`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/b89b6d5)
+- Do not fail `destroy-wiki` when the installation folder is already gone [`2a3d83b`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/2a3d83b)
+- Keep the GitHub token and the sysop password out of the process list and the Ansible output [`3d1cc67`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/3d1cc67)
 
-### Security
-- `restart-wiki` handler: pass the GitHub token and the sysop password on stdin and censor the tasks, so that they do not appear in the process list or the Ansible output
-
-[Unreleased]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/2.5.1...HEAD
+[Unreleased]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/3.0.0...HEAD
+[3.0.0]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/2.5.1...3.0.0
