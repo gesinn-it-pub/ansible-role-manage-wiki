@@ -1,2 +1,0 @@
-:project_name: Ansible Role "Manage Wiki"
-:project_type: ansible
