@@ -4,6 +4,8 @@
   gather_facts: false
   vars_files:
     - ../shared/vars.yml
+  vars:
+    log_lines: "{{ (log.content | b64decode).splitlines() }}"
   tasks:
     - name: Stat the CA certificate
       ansible.builtin.stat:
@@ -33,5 +35,5 @@
     - name: Assert the trust store is updated and the wiki restarted (once each)
       ansible.builtin.assert:
         that:
-          - (log.content | b64decode).splitlines() | select('equalto', 'update-ca-certificates ') | list | length == 1
-          - (log.content | b64decode).splitlines() | select('search', 'compose up -d --force-recreate') | list | length == 1
+          - log_lines | select('equalto', 'update-ca-certificates ') | list | length == 1
+          - log_lines | select('search', 'compose up -d --force-recreate') | list | length == 1

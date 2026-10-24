@@ -4,6 +4,8 @@
   gather_facts: false
   vars_files:
     - ../shared/vars.yml
+  vars:
+    log_lines: "{{ (docker_log.content | b64decode).splitlines() }}"
   tasks:
     - name: Stat what destroy-wiki removes
       ansible.builtin.stat:
@@ -24,5 +26,5 @@
 
     - name: Assert the compose project was taken down exactly once, with its volumes
       ansible.builtin.assert:
-        that: (docker_log.content | b64decode).splitlines() | select('equalto', 'docker compose down --volumes') | list | length == 1
-        fail_msg: "destroy-wiki must run `docker compose down --volumes` once and not again when the wiki is already gone"
+        that: log_lines | select('equalto', 'docker compose down --volumes') | list | length == 1
+        fail_msg: "destroy-wiki must run `compose down --volumes` once, and not when the wiki is already gone"

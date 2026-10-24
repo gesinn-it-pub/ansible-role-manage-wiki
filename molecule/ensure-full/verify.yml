@@ -4,6 +4,8 @@
   gather_facts: false
   vars_files:
     - ../shared/vars.yml
+  vars:
+    log_lines: "{{ (docker_log.content | b64decode).splitlines() }}"
   tasks:
     - name: Stat the rendered files
       ansible.builtin.stat:
@@ -69,10 +71,10 @@
     - name: Assert the restart handler ran in order, once
       ansible.builtin.assert:
         that:
-          - (docker_log.content | b64decode).splitlines() | select('search', 'login ghcr.io') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'compose up -d --force-recreate') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'compose run --rm wait-for-wiki') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'maintenance/update.php --quick') | list | length == 1
+          - log_lines | select('search', 'login ghcr.io') | list | length == 1
+          - log_lines | select('search', 'compose up -d --force-recreate') | list | length == 1
+          - log_lines | select('search', 'compose run --rm wait-for-wiki') | list | length == 1
+          - log_lines | select('search', 'maintenance/update.php --quick') | list | length == 1
         fail_msg: "Restart wiki must log in, build, wait and update exactly once"
 
     - name: Assert the GitHub token is passed on stdin and never on the command line
@@ -80,3 +82,13 @@
         that:
           - "'docker-login-stdin length=' in (docker_log.content | b64decode)"
           - "'ghp_not-a-real-token' not in (docker_log.content | b64decode)"
+
+    - name: Assert Ofelia is restarted after the wiki is up and before update.php, once
+      vars:
+        pattern: 'wait-for-wiki|^docker restart ofelia$|update.php'
+        steps: "{{ log_lines | map('regex_search', pattern) | select | list }}"
+      ansible.builtin.assert:
+        that:
+          - log_lines | select('equalto', 'docker restart ofelia') | list | length == 1
+          - steps == ['wait-for-wiki', 'docker restart ofelia', 'update.php']
+        fail_msg: "Ofelia must be restarted once, between wait-for-wiki and update.php, and not on the idempotent run"

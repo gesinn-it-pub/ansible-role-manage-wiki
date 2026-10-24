@@ -1,0 +1,39 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../shared/vars.yml
+  vars:
+    log_lines: "{{ (docker_log.content | b64decode).splitlines() }}"
+  tasks:
+    - name: Read the docker call log
+      ansible.builtin.slurp:
+        src: /tmp/molecule-ofelia/docker.log
+      register: docker_log
+
+    - name: Read the failure message
+      ansible.builtin.slurp:
+        src: "{{ scenario_root }}/failure-message"
+      register: failure
+
+    - name: Assert Ofelia was restarted when it runs, and only then
+      ansible.builtin.assert:
+        that:
+          # default run, busy run, failing run, destroy; not for the missing container and not when switched off
+          - log_lines | select('equalto', 'docker restart ofelia') | list | length == 4
+          - log_lines | select('equalto', 'docker restart my-ofelia') | list | length == 1
+          - log_lines | select('search', 'docker restart') | list | length == 5
+        fail_msg: "Ofelia must be restarted exactly when a container with that name runs and the switch is on"
+
+    - name: Assert the restart waited for the busy job runner before restarting
+      ansible.builtin.assert:
+        that:
+          - log_lines | select('search', '\[r\]un-jobs.sh') | list | length == 3
+        fail_msg: "Two busy polls and one idle poll are expected"
+
+    - name: Assert a failed restart fails with a clear message
+      ansible.builtin.assert:
+        that:
+          - "'could not be restarted' in (failure.content | b64decode)"
+          - "'docker restart ofelia' in (failure.content | b64decode)"

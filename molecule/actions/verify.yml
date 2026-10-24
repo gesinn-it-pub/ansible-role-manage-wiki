@@ -4,6 +4,8 @@
   gather_facts: false
   vars_files:
     - ../shared/vars.yml
+  vars:
+    log_lines: "{{ (docker_log.content | b64decode).splitlines() }}"
   tasks:
     - name: Read the docker call log
       ansible.builtin.slurp:
@@ -13,8 +15,8 @@
     - name: Assert every action reached docker once, in the installation folder context
       ansible.builtin.assert:
         that:
-          - (docker_log.content | b64decode).splitlines() | select('search', 'compose exec wiki php maintenance/runJobs.php --maxjobs 500') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'compose exec wiki php maintenance/showJobs.php') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'updateEntityCountMap.php') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'compose up -d --force-recreate') | list | length == 1
-          - (docker_log.content | b64decode).splitlines() | select('search', 'maintenance/changePassword.php --user=WikiSysop') | list | length == 1
+          - log_lines | select('search', 'exec wiki php maintenance/runJobs.php --maxjobs 500') | list | length == 1
+          - log_lines | select('search', 'compose exec wiki php maintenance/showJobs.php') | list | length == 1
+          - log_lines | select('search', 'updateEntityCountMap.php') | list | length == 1
+          - log_lines | select('search', 'compose up -d --force-recreate') | list | length == 1
+          - log_lines | select('search', 'maintenance/changePassword.php --user=WikiSysop') | list | length == 1

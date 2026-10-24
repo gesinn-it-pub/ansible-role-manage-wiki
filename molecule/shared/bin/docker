@@ -11,4 +11,31 @@ case "$*" in
     read -r secret
     echo "docker-login-stdin length=${#secret}" >> "$log" ;;
   *showJobs.php*) echo "0" ;;
+  # container lookup by name: FAKE_RUNNING_CONTAINERS lists the running ones
+  "ps "*"name=^/"*)
+    args="$*"
+    name="${args#*name=^/}"
+    name="${name%%\$*}"
+    for container in ${FAKE_RUNNING_CONTAINERS:-}; do
+      if [ "$container" = "$name" ]; then echo "fake-$container"; fi
+    done ;;
+  # the wiki containers that carry Ofelia labels
+  "ps "*"label=ofelia.enabled=true"*)
+    for container in ${FAKE_LABELED_CONTAINERS:-}; do echo "$container"; done ;;
+  # FAKE_RESTART_FAILS names the container whose restart fails
+  "restart "*)
+    if [ "$2" = "${FAKE_RESTART_FAILS:-}" ]; then
+      echo "Error response from daemon: cannot restart $2" >&2
+      exit 1
+    fi ;;
+  # pgrep for run-jobs.sh: busy for the first FAKE_BUSY_CALLS calls, then idle
+  "exec "*"[r]un-jobs.sh"*)
+    counter="$log.busy"
+    [ -f "$counter" ] || echo "${FAKE_BUSY_CALLS:-0}" > "$counter"
+    remaining="$(cat "$counter")"
+    if [ "$remaining" -gt 0 ]; then
+      echo $((remaining - 1)) > "$counter"
+      exit 0
+    fi
+    exit 1 ;;
 esac

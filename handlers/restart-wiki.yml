@@ -1,4 +1,4 @@
-- name: Restart Wiki | 1/5 (docker login)
+- name: Restart Wiki | 1/6 (docker login)
   ansible.builtin.command:
     cmd: docker login ghcr.io -u gesinn-it --password-stdin
     chdir: "{{ WIKI_INSTALLATION_PATH }}"
@@ -17,7 +17,7 @@
 
 # -----------------------------------------------------------------------------
 
-- name: Restart Wiki | 2/5 (build & up)
+- name: Restart Wiki | 2/6 (build & up)
   ansible.builtin.shell: |
     set -eux
     {{ docker_compose }} --profile=no-up pull
@@ -29,14 +29,14 @@
   environment: "{{ proxy_env }}"
   listen: Restart wiki
 
-# - name: Restart wiki 2/5 result
+# - name: Restart wiki 2/6 result
 #   ansible.builtin.debug:
 #     var: restart_2_result.stdout_lines
 #   listen: Restart wiki
 
 # -----------------------------------------------------------------------------
 
-- name: Restart Wiki | 3/5 (wait-for-wiki)
+- name: Restart Wiki | 3/6 (wait-for-wiki)
   ansible.builtin.shell: |
     set -eux
     {{ docker_compose }} run --rm wait-for-wiki
@@ -46,14 +46,21 @@
   environment: "{{ proxy_env }}"
   listen: Restart wiki
 
-# - name: Restart wiki 3/5 result
+# - name: Restart wiki 3/6 result
 #   ansible.builtin.debug:
 #     var: restart_3_result.stdout_lines
 #   listen: Restart wiki
 
 # -----------------------------------------------------------------------------
 
-- name: Restart Wiki | 4/5 (update.php)
+# Ofelia reads the labels of the wiki containers only at its start, see tasks/restart-ofelia.yml.
+- name: Restart Wiki | 4/6 (restart ofelia)
+  ansible.builtin.include_tasks: ../tasks/restart-ofelia.yml
+  listen: Restart wiki
+
+# -----------------------------------------------------------------------------
+
+- name: Restart Wiki | 5/6 (update.php)
   ansible.builtin.shell: |
     set -eux
     {{ docker_compose }} exec wiki php maintenance/update.php --quick
@@ -65,11 +72,12 @@
 
 # The password reaches the container on stdin. Neither a command line argument nor an environment variable would do:
 # both show up in the process list or in the -vvv output of Ansible. The task is censored as well.
-- name: Restart Wiki | 5/5 (changePassword.php)
+- name: Restart Wiki | 6/6 (changePassword.php)
   ansible.builtin.shell: |
     set -eu
     {{ docker_compose }} exec -T wiki sh -c \
-      'IFS= read -r password && php maintenance/changePassword.php --user={{ WIKI_WIKISYSOP_USER | quote }} --password="$password"' \
+      'IFS= read -r password \
+      && php maintenance/changePassword.php --user={{ WIKI_WIKISYSOP_USER | quote }} --password="$password"' \
       || true
   args:
     chdir: "{{ WIKI_INSTALLATION_PATH }}"

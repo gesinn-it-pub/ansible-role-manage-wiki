@@ -1,0 +1,76 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../shared/vars.yml
+  vars:
+    restart_ofelia_file: "{{ playbook_dir }}/../../tasks/restart-ofelia.yml"
+  tasks:
+    # Stubbed: the docker CLI (molecule/shared/bin) reports which containers run
+    # and records the restarts. Untested: Ofelia itself, and that it picks up the labels.
+    - name: Ofelia runs, default container name
+      ansible.builtin.include_tasks:
+        file: "{{ restart_ofelia_file }}"
+        apply:
+          environment:
+            FAKE_RUNNING_CONTAINERS: ofelia
+
+    - name: There is no Ofelia container
+      ansible.builtin.include_tasks:
+        file: "{{ restart_ofelia_file }}"
+        apply:
+          environment:
+            FAKE_RUNNING_CONTAINERS: "other-container"
+
+    - name: The restart is switched off
+      ansible.builtin.include_tasks:
+        file: "{{ restart_ofelia_file }}"
+        apply:
+          environment:
+            FAKE_RUNNING_CONTAINERS: ofelia
+      vars:
+        manage_wiki_restart_ofelia: false
+
+    - name: Ofelia runs under another name
+      ansible.builtin.include_tasks:
+        file: "{{ restart_ofelia_file }}"
+        apply:
+          environment:
+            FAKE_RUNNING_CONTAINERS: my-ofelia
+      vars:
+        manage_wiki_ofelia_container: my-ofelia
+
+    - name: A job runner is busy for two polls
+      ansible.builtin.include_tasks:
+        file: "{{ restart_ofelia_file }}"
+        apply:
+          environment:
+            FAKE_RUNNING_CONTAINERS: ofelia
+            FAKE_LABELED_CONTAINERS: wiki-a
+            FAKE_BUSY_CALLS: "2"
+      vars:
+        manage_wiki_ofelia_wait_seconds: 10
+
+    - name: The restart fails
+      block:
+        - name: Restart Ofelia although docker restart fails
+          ansible.builtin.include_tasks:
+            file: "{{ restart_ofelia_file }}"
+            apply:
+              environment:
+                FAKE_RUNNING_CONTAINERS: ofelia
+                FAKE_RESTART_FAILS: ofelia
+      rescue:
+        - name: Keep the failure message for verify
+          ansible.builtin.copy:
+            content: "{{ ansible_failed_result.msg }}"
+            dest: "{{ scenario_root }}/failure-message"
+            mode: "0644"
+
+    - name: Destroy a wiki while Ofelia runs
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../../tasks/destroy-wiki.yml"
+        apply:
+          environment:
+            FAKE_RUNNING_CONTAINERS: ofelia

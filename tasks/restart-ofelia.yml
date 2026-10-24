@@ -1,0 +1,86 @@
+# Restarts the Ofelia container that is shared by all wikis of a machine.
+#
+# Ofelia 0.3.x reads the ofelia.job-exec.* labels of the wiki containers only when it starts. A wiki that was
+# (re)created, stopped or removed after that is not picked up: its jobs never run, or Ofelia keeps failing on the
+# container that is gone. Call this file after every change to the wiki containers, for example with
+# include_tasks. The role does so itself after the restart handler and after destroy-wiki.yml.
+#
+# Inputs, all optional (defaulted here, because role defaults are not loaded for include_tasks):
+#   manage_wiki_restart_ofelia          true: restart; false: do nothing
+#   manage_wiki_ofelia_container        name of the Ofelia container, default ofelia
+#   manage_wiki_ofelia_wait_seconds     upper limit to wait for running run-jobs.sh, default 30, 0 disables it
+#
+# The file has no block: it is also included from a handler, and a handler cannot be a block.
+- name: Restart Ofelia | Report that the restart is switched off
+  ansible.builtin.debug:
+    msg: "manage_wiki_restart_ofelia is false, Ofelia is not restarted."
+  when: not (manage_wiki_restart_ofelia | default(true) | bool)
+
+- name: Restart Ofelia | Resolve the settings
+  ansible.builtin.set_fact:
+    restart_ofelia_container: "{{ manage_wiki_ofelia_container | default('ofelia') }}"
+    restart_ofelia_wait_seconds: "{{ manage_wiki_ofelia_wait_seconds | default(30) | int }}"
+  when: manage_wiki_restart_ofelia | default(true) | bool
+
+- name: Restart Ofelia | Look for the running container
+  ansible.builtin.command:
+    cmd: docker ps --quiet --filter "name=^/{{ restart_ofelia_container }}$"
+  register: restart_ofelia_lookup
+  changed_when: false
+  when: manage_wiki_restart_ofelia | default(true) | bool
+
+- name: Restart Ofelia | Report that there is no container to restart
+  ansible.builtin.debug:
+    msg: "No running container named {{ restart_ofelia_container }}, Ofelia is not restarted."
+  when:
+    - manage_wiki_restart_ofelia | default(true) | bool
+    - restart_ofelia_lookup.stdout | trim == ''
+
+# Ofelia does not know the no-overlap state of the old process. A run-jobs.sh that is still running would run a
+# second time next to the first one, so wait a limited time until none is running. Best effort: a container
+# without pgrep counts as idle.
+- name: Restart Ofelia | Wait for running job runners
+  ansible.builtin.shell: |
+    set -u
+    deadline=$(( $(date +%s) + {{ restart_ofelia_wait_seconds }} ))
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+      busy=0
+      for container in $(docker ps --quiet --filter label=ofelia.enabled=true); do
+        if docker exec "$container" sh -c 'pgrep -f "[r]un-jobs.sh" >/dev/null 2>&1'; then
+          busy=1
+        fi
+      done
+      [ "$busy" -eq 0 ] && exit 0
+      sleep 1
+    done
+    echo "run-jobs.sh was still running after {{ restart_ofelia_wait_seconds }} s"
+  register: restart_ofelia_wait
+  changed_when: false
+  when:
+    - manage_wiki_restart_ofelia | default(true) | bool
+    - restart_ofelia_lookup.stdout | trim != ''
+    - restart_ofelia_wait_seconds | int > 0
+
+- name: Restart Ofelia | Report a job runner that did not finish
+  ansible.builtin.debug:
+    msg: "{{ restart_ofelia_wait.stdout }}; Ofelia is restarted anyway."
+  when: restart_ofelia_wait.stdout | default('') | trim != ''
+
+- name: Restart Ofelia | Restart the container
+  ansible.builtin.command:
+    cmd: docker restart {{ restart_ofelia_container | quote }}
+  register: restart_ofelia_result
+  changed_when: restart_ofelia_result.rc == 0
+  failed_when: false
+  when:
+    - manage_wiki_restart_ofelia | default(true) | bool
+    - restart_ofelia_lookup.stdout | trim != ''
+
+# A restart that did not happen leaves the wiki jobs silently dead, so it must not pass
+- name: Restart Ofelia | Fail with a clear message when the restart failed
+  ansible.builtin.fail:
+    msg: >-
+      Ofelia ({{ restart_ofelia_container }}) could not be restarted. The wiki jobs will not run until it re-reads
+      the labels of the wiki containers: restart it by hand (docker restart {{ restart_ofelia_container }}).
+      Cause: {{ restart_ofelia_result.stderr | default('unknown') }}
+  when: restart_ofelia_result.rc | default(0) != 0

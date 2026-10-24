@@ -22,3 +22,7 @@
     path: "{{ local_wiki_folder }}/mobo-deployment"
     state: absent
   become: false
+
+# The containers are gone, so Ofelia would keep failing on their jobs
+- name: Destroy Wiki | Restart Ofelia
+  ansible.builtin.include_tasks: restart-ofelia.yml
