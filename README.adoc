@@ -57,9 +57,12 @@ every input is a variable of the calling project, and optional ones are defaulte
 | `tasks/restart-wiki.yml`
 | Triggers `Restart wiki` explicitly.
 
+| `tasks/restart-ofelia.yml`
+| Restarts the shared Ofelia container, see <<ofelia>>. Call it after you stopped, destroyed or restored a wiki.
+
 | `tasks/destroy-wiki.yml`
-| Runs `docker compose down --volumes` and removes the installation and the local `mobo-deployment` folder. Can be run
-again when the wiki is already gone.
+| Runs `docker compose down --volumes`, removes the installation and the local `mobo-deployment` folder and restarts
+Ofelia. Can be run again when the wiki is already gone.
 
 | `tasks/maint-runJobs.yml`
 | Runs up to 500 MediaWiki jobs.
@@ -130,7 +133,21 @@ Needs `TRAEFIK_INSTALLATION_PATH`.
 | `LDAP_CA_CERTIFICATE`
 | unset
 | CA certificate that is installed on the host. `update-ca-certificates` runs only when it changed.
+
+| `manage_wiki_restart_ofelia`
+| `true`
+| Restart Ofelia after the wiki containers changed, see <<ofelia>>. `false` switches it off.
+
+| `manage_wiki_ofelia_container`
+| `ofelia`
+| Name of the Ofelia container.
+
+| `manage_wiki_ofelia_wait_seconds`
+| `30`
+| Upper limit in seconds to wait for a running `run-jobs.sh` before the restart. `0` does not wait.
 |===
+
+Optional variables are defaulted inside the tasks (`default(...)`), not in `defaults/main.yml`.
 
 [#templates]
 == Templates
@@ -148,11 +165,40 @@ A `customization/Dockerfile.Custom.j2` is appended to the Dockerfile.
 . `docker login` (only with `GH_API_TOKEN`)
 . `pull`, `build --no-cache --pull`, `up -d --force-recreate`
 . wait for the wiki
+. restart Ofelia, see <<ofelia>>
 . `update.php --quick`
 . `changePassword.php` for the wiki sysop
 
 The token and the password are handed over on stdin and the tasks are censored (`no_log`), so they appear neither in
 the process list nor in the Ansible output. Callers define a handler named `Restart wiki` that includes this file.
+
+[#ofelia]
+== Ofelia
+
+The wikis of a machine share one Ofelia container, which runs the MediaWiki job queue (`run-jobs.sh`) through
+`ofelia.job-exec.*` labels. Ofelia 0.3.x reads these labels only when it starts and has no option to poll or to watch
+Docker events. A wiki that is created or recreated afterwards is not picked up and its jobs never run, and Ofelia
+keeps failing on the jobs of a wiki that was stopped or removed (`error creating exec: No such container`).
+
+The role therefore restarts Ofelia where it changes wiki containers: in the restart handler (after the wiki is up) and
+at the end of `destroy-wiki.yml`. For flows that live in the calling project, such as stop and restore, include
+`tasks/restart-ofelia.yml` after them:
+
+[source,yaml]
+----
+- ansible.builtin.include_tasks: "roles/gesinn.manage_wiki/tasks/restart-ofelia.yml"
+----
+
+* The restart only happens when a running container with the configured name exists. Otherwise the task reports that
+  and carries on.
+* When the container exists but `docker restart` fails, the play fails with a message, because silently missing jobs
+  are what this step prevents.
+* The step is `changed` only when Ofelia was restarted. A run that does not notify the handler does not touch Ofelia.
+* The role does not depend on `gesinn.manage_ofelia`; it only calls `docker restart`.
+* Ofelia forgets its no-overlap state when it restarts, so a `run-jobs.sh` that is still running would run a second
+  time next to the first one. Before the restart the role waits up to `manage_wiki_ofelia_wait_seconds` until no
+  `run-jobs.sh` runs in the containers labelled `ofelia.enabled=true`, and restarts anyway after that. This relies on
+  `pgrep` in the wiki container; a container without it counts as idle.
 
 == Development
 
