@@ -1,10 +1,11 @@
-- name: Restart Wiki | 1/4 (docker login)
-  ansible.builtin.shell: |
-    set -eux
-    echo {{ GH_API_TOKEN }} | docker login ghcr.io -u gesinn-it --password-stdin
-  register: restart_1_result
-  args:
+- name: Restart Wiki | 1/5 (docker login)
+  ansible.builtin.command:
+    cmd: docker login ghcr.io -u gesinn-it --password-stdin
     chdir: "{{ WIKI_INSTALLATION_PATH }}"
+    stdin: "{{ GH_API_TOKEN }}"
+  register: restart_1_result
+  changed_when: true
+  no_log: true
   environment: "{{ proxy_env }}"
   listen: Restart wiki
   when: GH_API_TOKEN is defined
@@ -16,7 +17,7 @@
 
 # -----------------------------------------------------------------------------
 
-- name: Restart Wiki | 2/4 (build & up)
+- name: Restart Wiki | 2/5 (build & up)
   ansible.builtin.shell: |
     set -eux
     {{ docker_compose }} --profile=no-up pull
@@ -28,14 +29,14 @@
   environment: "{{ proxy_env }}"
   listen: Restart wiki
 
-# - name: Restart wiki 2/4 result
+# - name: Restart wiki 2/5 result
 #   ansible.builtin.debug:
 #     var: restart_2_result.stdout_lines
 #   listen: Restart wiki
 
 # -----------------------------------------------------------------------------
 
-- name: Restart Wiki | 3/4 (wait-for-wiki)
+- name: Restart Wiki | 3/5 (wait-for-wiki)
   ansible.builtin.shell: |
     set -eux
     {{ docker_compose }} run --rm wait-for-wiki
@@ -45,23 +46,37 @@
   environment: "{{ proxy_env }}"
   listen: Restart wiki
 
-# - name: Restart wiki 3/4 result
+# - name: Restart wiki 3/5 result
 #   ansible.builtin.debug:
 #     var: restart_3_result.stdout_lines
 #   listen: Restart wiki
 
 # -----------------------------------------------------------------------------
 
-- name: Restart Wiki | 4/4 (update.php, changePassword.php)
+- name: Restart Wiki | 4/5 (update.php)
   ansible.builtin.shell: |
     set -eux
     {{ docker_compose }} exec wiki php maintenance/update.php --quick
-    {{ docker_compose }} exec wiki php maintenance/changePassword.php --user={{ WIKI_WIKISYSOP_USER }} --password={{ WIKI_WIKISYSOP_PASSWORD }} \
-      || true
   register: restart_4_result
   args:
     chdir: "{{ WIKI_INSTALLATION_PATH }}"
   environment: "{{ proxy_env }}"
+  listen: Restart wiki
+
+# The password reaches the container on stdin. Neither a command line argument nor an environment variable would do:
+# both show up in the process list or in the -vvv output of Ansible. The task is censored as well.
+- name: Restart Wiki | 5/5 (changePassword.php)
+  ansible.builtin.shell: |
+    set -eu
+    {{ docker_compose }} exec -T wiki sh -c \
+      'IFS= read -r password && php maintenance/changePassword.php --user={{ WIKI_WIKISYSOP_USER | quote }} --password="$password"' \
+      || true
+  args:
+    chdir: "{{ WIKI_INSTALLATION_PATH }}"
+    stdin: "{{ WIKI_WIKISYSOP_PASSWORD }}"
+  environment: "{{ proxy_env }}"
+  changed_when: true
+  no_log: true
   listen: Restart wiki
 
 # - name: Restart wiki 4/4 result

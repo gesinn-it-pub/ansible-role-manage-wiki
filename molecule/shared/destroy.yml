@@ -3,6 +3,7 @@
 # scenario created. Otherwise the scenarios would depend on the run order.
 - name: Destroy
   hosts: all
+  gather_facts: false
   vars_files:
     - vars.yml
   tasks:
@@ -12,5 +13,6 @@
         state: absent
       loop:
         - "{{ scenario_root }}"
+        - "{{ scenario_root }}-ansible.log"
         - /tmp/restart-wiki-trigger
         - /usr/local/share/ca-certificates/LDAP-CA.crt
