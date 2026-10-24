@@ -1,4 +1,7 @@
 ---
+# Target is `production`. The role is not there yet: `ansible-lint --profile production` reports
+# no-changed-when (docker compose / maintenance commands), risky-shell-pipe, no-relative-paths and
+# risky-file-permissions. Fixing them changes handler notification behaviour, so each needs its own change and test.
 profile: basic
 
 # Exclude files not meant to be linted directly
