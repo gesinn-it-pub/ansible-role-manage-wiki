@@ -1,0 +1,54 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    - name: Stat the files and folders the role must create
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}/{{ item }}"
+      register: created
+      loop:
+        - ""
+        - docker-compose.yml
+        - context/LocalSettings.Custom
+
+    - name: Assert the installation folder, docker-compose.yml and the context folder exist
+      ansible.builtin.assert:
+        that: created.results | map(attribute='stat.exists') | min
+        fail_msg: "ensure-wiki must create the installation folder, docker-compose.yml and context/LocalSettings.Custom"
+
+    - name: Read the rendered docker-compose.yml
+      ansible.builtin.slurp:
+        src: "{{ WIKI_INSTALLATION_PATH }}/docker-compose.yml"
+      register: compose
+
+    - name: Assert docker-compose.yml is rendered from the wiki variables
+      ansible.builtin.assert:
+        that: "('image: \"' ~ WIKI_IMAGE ~ '\"') in (compose.content | b64decode)"
+
+    - name: Stat the context files that have no template for this MW_RELEASE
+      ansible.builtin.stat:
+        path: "{{ WIKI_INSTALLATION_PATH }}/context/{{ item }}"
+      register: skipped
+      loop:
+        - Dockerfile
+        - startup-container.sh
+        - logo.png
+        - logo.svg
+        - custom.scss
+
+    - name: Assert templates and assets that are absent are skipped
+      ansible.builtin.assert:
+        that: not (skipped.results | map(attribute='stat.exists') | max)
+
+    - name: Read the docker call log
+      ansible.builtin.slurp:
+        src: /tmp/molecule-ensure-minimal/docker.log
+      register: docker_log
+
+    - name: Assert the restart handler ran without a login (no GH_API_TOKEN)
+      ansible.builtin.assert:
+        that:
+          - "'compose up -d --force-recreate' in (docker_log.content | b64decode)"
+          - "'login' not in (docker_log.content | b64decode)"

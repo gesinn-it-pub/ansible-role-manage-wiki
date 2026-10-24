@@ -175,7 +175,7 @@
         certificates:
           - certFile: /etc/traefik/extra-certs/{{ WIKI_DOMAIN }}.crt
             keyFile: /etc/traefik/extra-certs/{{ WIKI_DOMAIN }}.key
-  when: WIKI_USES_EXTRA_CERT
+  when: WIKI_USES_EXTRA_CERT | default(false)
   notify: Restart wiki
 
 ############################################################

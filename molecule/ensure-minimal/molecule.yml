@@ -1,0 +1,29 @@
+---
+driver:
+  name: default
+
+platforms:
+  - name: instance
+
+provisioner:
+  name: ansible
+  env:
+    # the stubs for docker and update-ca-certificates shadow the real ones
+    PATH: ${MOLECULE_SCENARIO_DIRECTORY}/../shared/bin:${PATH}
+    FAKE_DOCKER_LOG: /tmp/molecule-${MOLECULE_SCENARIO_NAME}/docker.log
+  inventory:
+    hosts:
+      all:
+        hosts:
+          instance:
+            ansible_connection: local
+    group_vars:
+      all:
+        MW_RELEASE: "1.35"
+  playbooks:
+    destroy: ../shared/destroy.yml
+  options:
+    skip-tags: molecule_skip
+
+verifier:
+  name: ansible
