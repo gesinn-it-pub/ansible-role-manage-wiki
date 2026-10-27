@@ -6,8 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/) and
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-10-27
+
+Fixes the LDAP CA step on hosts that are not Debian or Ubuntu, e.g. Rocky Linux.
+
 ### Fixed
-- Skip `update-ca-certificates` on hosts outside the Debian family, where the command does not exist and the LDAP CA step failed. The certificate is still written to the bind-mounted path
+- Skip `update-ca-certificates` on hosts outside the Debian family, where the command does not exist and the LDAP CA step failed. The certificate is still written to the bind-mounted path [`2e00ca0`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/2e00ca0)
 
 ## [3.0.0] - 2026-10-24
 
@@ -35,5 +39,6 @@ the GitHub token and the sysop password out of logs and the process list.
 - Do not fail `destroy-wiki` when the installation folder is already gone [`2a3d83b`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/2a3d83b)
 - Keep the GitHub token and the sysop password out of the process list and the Ansible output [`3d1cc67`](https://github.com/gesinn-it-pub/ansible-role-manage-wiki/commit/3d1cc67)
 
-[Unreleased]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/3.0.0...HEAD
+[Unreleased]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/3.0.1...HEAD
+[3.0.1]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/3.0.0...3.0.1
 [3.0.0]: https://github.com/gesinn-it-pub/ansible-role-manage-wiki/compare/2.5.1...3.0.0
