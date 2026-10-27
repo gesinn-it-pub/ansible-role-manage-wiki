@@ -196,9 +196,13 @@
       register: ldap_ca_certificate_copy
       notify: Restart wiki
 
+    # The wiki container gets the certificate by bind mount, so the host trust store is a convenience for the tools on
+    # the host. update-ca-certificates only exists on the Debian family; facts that are not gathered count as Debian.
     - name: Ensure Wiki | Update CA certificates
       ansible.builtin.command:
         cmd: update-ca-certificates
       become: true
-      when: ldap_ca_certificate_copy is changed
+      when:
+        - ldap_ca_certificate_copy is changed
+        - ansible_facts['os_family'] | default('Debian') == 'Debian'
       changed_when: true

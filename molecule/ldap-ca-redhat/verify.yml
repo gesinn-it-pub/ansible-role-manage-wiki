@@ -1,0 +1,41 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../shared/vars.yml
+  vars:
+    log_lines: "{{ (log.content | b64decode).splitlines() }}"
+  tasks:
+    - name: Stat the CA certificate
+      ansible.builtin.stat:
+        path: /usr/local/share/ca-certificates/LDAP-CA.crt
+      register: ca
+
+    - name: Assert the CA certificate is installed with mode 0644
+      ansible.builtin.assert:
+        that:
+          - ca.stat.exists
+          - ca.stat.mode == "0644"
+
+    - name: Read the CA certificate
+      ansible.builtin.slurp:
+        src: /usr/local/share/ca-certificates/LDAP-CA.crt
+      register: ca_content
+
+    - name: Assert the content is the configured CA
+      ansible.builtin.assert:
+        that: "(ca_content.content | b64decode) == LDAP_CA_CERTIFICATE"
+
+    - name: Read the call log
+      ansible.builtin.slurp:
+        src: /tmp/molecule-ldap-ca-redhat/docker.log
+      register: log
+
+    # the wiki container gets the certificate by bind mount, the host trust store is not needed; the command does not
+    # exist on the RedHat family
+    - name: Assert the trust store is not touched and the wiki restarted once
+      ansible.builtin.assert:
+        that:
+          - log_lines | select('equalto', 'update-ca-certificates ') | list | length == 0
+          - log_lines | select('search', 'compose up -d --force-recreate') | list | length == 1

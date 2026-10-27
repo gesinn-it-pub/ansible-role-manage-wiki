@@ -129,7 +129,7 @@ Needs `TRAEFIK_INSTALLATION_PATH`.
 
 | `LDAP_CA_CERTIFICATE`
 | unset
-| CA certificate that is installed on the host. `update-ca-certificates` runs only when it changed.
+| CA certificate that is installed on the host. `update-ca-certificates` runs only when it changed, and only on the Debian family (the wiki container gets the file by bind mount, so other distributions work without it).
 
 | `manage_wiki_restart_ofelia`
 | `true`

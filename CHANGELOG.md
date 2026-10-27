@@ -6,6 +6,9 @@ This project adheres to [Semantic Versioning](https://semver.org/) and
 
 ## [Unreleased]
 
+### Fixed
+- Skip `update-ca-certificates` on hosts outside the Debian family, where the command does not exist and the LDAP CA step failed. The certificate is still written to the bind-mounted path
+
 ## [3.0.0] - 2026-10-24
 
 Requires ansible-core 2.19 and restarts the shared Ofelia container whenever a wiki is restarted or destroyed. Read the

@@ -1,0 +1,25 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../shared/vars.yml
+  tasks:
+    # Stubbed: the docker CLI and update-ca-certificates (molecule/shared/bin).
+    # Untested: a real Docker daemon, image builds and the wiki itself.
+    # The role is applied the way wiki-factory does: single task files via
+    # include_tasks, so defaults/ of the role are not loaded.
+    # Facts are not gathered in the scenarios: present the host as a RedHat family one (no update-ca-certificates there)
+    - name: Present the host as RedHat family
+      ansible.builtin.set_fact:
+        ansible_facts: "{{ ansible_facts | combine({'os_family': 'RedHat'}) }}"
+
+    - name: Show info
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/show-info.yml"
+
+    - name: Ensure wiki
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../tasks/ensure-wiki.yml"
+
+  handlers:
+    - name: Restart wiki
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../handlers/restart-wiki.yml"
